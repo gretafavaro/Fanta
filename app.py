@@ -4,6 +4,7 @@ import statsmodels.formula.api as smf
 import plotly.graph_objects as go
 import os
 import io
+import unicodedata
 
 st.set_page_config(page_title="Fantacalcio AI Pro", layout="wide")
 st.title("⚽ Fantacalcio AI: Modello Avanzato Predittivo")
@@ -45,14 +46,13 @@ MODULI_VALIDI = [
 # --- 2. ZONA CARICAMENTO DATI (SIDEBAR) ---
 st.sidebar.markdown("---")
 st.sidebar.subheader("🔄 Aggiornamento Dati Statistiche")
-st.sidebar.markdown("Carica qui qualsiasi file esportato da FBref (anche se mancano xG/xA, l'IA farà una stima usando Gol e Assist reali).")
+st.sidebar.markdown("Carica qui qualsiasi file esportato da FBref.")
 
 file_fbref = st.sidebar.file_uploader("Trascina qui il file", type=['csv', 'txt', 'xls'])
 
 if file_fbref is not None:
     with st.spinner("Analisi intelligente del file in corso..."):
         try:
-            # Prova prima con la virgola, poi con il punto e virgola
             for separatore in [',', ';']:
                 try:
                     file_fbref.seek(0)
@@ -61,7 +61,6 @@ if file_fbref is not None:
                     file_fbref.seek(0)
                     df_utili = pd.read_csv(file_fbref, sep=separatore, on_bad_lines='skip', encoding='latin-1')
                 
-                # Cerca l'intestazione corretta, saltando righe se necessario
                 colonne_trovate = df_utili.columns.tolist()
                 if 'Giocatore' not in colonne_trovate and 'Player' not in colonne_trovate:
                     try:
@@ -71,20 +70,16 @@ if file_fbref is not None:
                         file_fbref.seek(0)
                         df_utili = pd.read_csv(file_fbref, sep=separatore, skiprows=1, on_bad_lines='skip', encoding='latin-1')
                 
-                # Rinomina per standardizzare
                 if 'Player' in df_utili.columns:
                     df_utili = df_utili.rename(columns={'Player': 'Giocatore'})
                 if 'Giocatore' in df_utili.columns:
                     break
             
-            # --- MOTORE FLESSIBILE ---
             if 'Giocatore' in df_utili.columns:
-                # 1. Cerca i dati predittivi perfetti (xG, xAG)
                 xg_col = 'xG' if 'xG' in df_utili.columns else None
                 xag_col = 'xAG' if 'xAG' in df_utili.columns else 'xA' if 'xA' in df_utili.columns else None
                 usati_dati_stima = False
 
-                # 2. Se non li trova, attiva il piano di riserva (Usa Gol e Assist reali)
                 if not xg_col and 'Gls' in df_utili.columns:
                     df_utili['xG_stimato'] = df_utili['Gls'].astype(str).str.replace(',', '.')
                     xg_col = 'xG_stimato'
@@ -95,10 +90,9 @@ if file_fbref is not None:
                     xag_col = 'xA_stimato'
                     usati_dati_stima = True
 
-                # 3. Aggiorna il database
                 if xg_col and xag_col:
                     df_utili = df_utili[['Giocatore', xg_col, xag_col]].copy()
-                    df_utili = df_utili[df_utili['Giocatore'] != 'Giocatore'] # Pulisce eventuali sporcizie FBref
+                    df_utili = df_utili[df_utili['Giocatore'] != 'Giocatore']
                     
                     df_utili['xG'] = pd.to_numeric(df_utili[xg_col], errors='coerce').fillna(0.0)
                     df_utili['xA'] = pd.to_numeric(df_utili[xag_col], errors='coerce').fillna(0.0)
@@ -106,8 +100,16 @@ if file_fbref is not None:
                     if os.path.exists('giocatori.csv'):
                         mio_file = pd.read_csv('giocatori.csv', sep=';')
                         
+                        # Funzione per togliere accenti e lettere strane
+                        def pulisci_nome(nome):
+                            if not isinstance(nome, str): return ""
+                            return unicodedata.normalize('NFKD', nome).encode('ASCII', 'ignore').decode('utf-8').lower()
+                        
+                        df_utili['Giocatore_Clean'] = df_utili['Giocatore'].apply(pulisci_nome)
+                        
                         def trova_xg_xa(nome_giocatore):
-                            match = df_utili[df_utili['Giocatore'].str.contains(nome_giocatore, case=False, na=False)]
+                            nome_pulito = pulisci_nome(nome_giocatore)
+                            match = df_utili[df_utili['Giocatore_Clean'].str.contains(nome_pulito, case=False, na=False)]
                             if not match.empty:
                                 return match['xG'].values[0], match['xA'].values[0]
                             return 0.0, 0.0
@@ -144,7 +146,8 @@ def prepara_dati_giornata(giornata_da_giocare):
     calendario = pd.read_csv('calendario.csv', sep=';')
     voti_base_oriz = pd.read_csv('storico_voti_base.csv', sep=';')
     voti_bonus_oriz = pd.read_csv('storico_bonus.csv', sep=';')
-
+    
+    # PULIZIA SPAZI INVISIBILI
     giocatori['Squadra'] = giocatori['Squadra'].str.strip()
     calendario['Squadra_Casa'] = calendario['Squadra_Casa'].str.strip()
     calendario['Squadra_Trasferta'] = calendario['Squadra_Trasferta'].str.strip()
@@ -162,7 +165,7 @@ def prepara_dati_giornata(giornata_da_giocare):
     storico = storico.dropna(subset=['Voto_Base'])
     df_completo = pd.merge(storico, giocatori, on='Nome', how='left').sort_values(by=['Nome', 'Giornata'])
     
-    # Calcola la media voto pura su TUTTO lo storico stagionale
+    # CALCOLO MEDIA VOTI TOTALE (su tutta la stagione, non solo ultime 3 partite)
     df_completo['Media_Voto_Totale'] = df_completo.groupby('Nome')['Voto_Base'].transform(
         lambda x: x.shift(1).expanding().mean().fillna(5.0)
     )
