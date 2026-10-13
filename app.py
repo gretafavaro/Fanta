@@ -240,18 +240,18 @@ if not df_giornata.empty:
     modello_base, modello_bonus = allena_modelli()
 
 def calcola_previsioni(dati_giocatore):
-    prev_base = modello_base.get_prediction(dati_giocatore).summary_frame(alpha=0.05)
-    prev_bonus = modello_bonus.get_prediction(dati_giocatore).summary_frame(alpha=0.05)
+    # Usa .predict() per il Modello Robusto
+    v_base_atteso = modello_base.predict(dati_giocatore).values[0]
+    bonus_atteso = modello_bonus.predict(dati_giocatore).values[0]
     
-    v_base_atteso = prev_base['mean'].values[0]
-    bonus_atteso = prev_bonus['mean'].values[0]
     xfp_tot = v_base_atteso + bonus_atteso
     
-    min_v = prev_base['obs_ci_lower'].values[0] + prev_bonus['obs_ci_lower'].values[0]
-    max_v = prev_base['obs_ci_upper'].values[0] + prev_bonus['obs_ci_upper'].values[0]
+    # Visto che RLM taglia le code e non calcola gli estremi, 
+    # impostiamo un margine statistico realistico (+/- 1.5 punti)
+    min_v = xfp_tot - 1.5
+    max_v = xfp_tot + 1.5
     
     return round(xfp_tot, 2), round(v_base_atteso, 2), round(min_v, 2), round(max_v, 2)
-
 def suggerisci_miglior_formazione(df_giornata):
     previsioni = df_giornata.apply(lambda x: calcola_previsioni(pd.DataFrame([x])), axis=1)
     df_giornata['xFP'] = [p[0] for p in previsioni]
