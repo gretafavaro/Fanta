@@ -143,6 +143,9 @@ def prepara_dati_giornata(giornata_da_giocare):
             return pd.DataFrame()
             
     giocatori = pd.read_csv('giocatori.csv', sep=';')
+    # SALVATAGGIO CRASH: Riempie le celle vuote dei Rigori con 0
+    giocatori = giocatori.fillna(0)
+    
     calendario = pd.read_csv('calendario.csv', sep=';')
     voti_base_oriz = pd.read_csv('storico_voti_base.csv', sep=';')
     voti_bonus_oriz = pd.read_csv('storico_bonus.csv', sep=';')
@@ -165,7 +168,7 @@ def prepara_dati_giornata(giornata_da_giocare):
     storico = storico.dropna(subset=['Voto_Base'])
     df_completo = pd.merge(storico, giocatori, on='Nome', how='left').sort_values(by=['Nome', 'Giornata'])
     
-    # CALCOLO MEDIA VOTI TOTALE (su tutta la stagione, non solo ultime 3 partite)
+    # CALCOLO MEDIA VOTI TOTALE (su tutta la stagione)
     df_completo['Media_Voto_Totale'] = df_completo.groupby('Nome')['Voto_Base'].transform(
         lambda x: x.shift(1).expanding().mean().fillna(5.0)
     )
@@ -221,10 +224,12 @@ def allena_modelli():
     })
     
     form_base = 'Voto_Base ~ Media_Voto_Totale + Fatica + Difficolta_Ruolo + Fattore_Campo'
-    mod_base = smf.ols(formula=form_base, data=dati_train).fit()
+    # ALGORITMO ROBUSTO: sgonfia gli outlier sui voti
+    mod_base = smf.rlm(formula=form_base, data=dati_train).fit()
     
     form_bonus = 'Bonus ~ xG + xA + Rigori + Punizioni + Difficolta_Ruolo + Fattore_Campo'
-    mod_bonus = smf.ols(formula=form_bonus, data=dati_train).fit()
+    # ALGORITMO ROBUSTO: ignora gli azzardi statistici estremi
+    mod_bonus = smf.rlm(formula=form_bonus, data=dati_train).fit()
     
     return mod_base, mod_bonus
 
