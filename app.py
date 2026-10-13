@@ -158,9 +158,9 @@ def prepara_dati_giornata(giornata_da_giocare):
     storico = storico.dropna(subset=['Voto_Base'])
     df_completo = pd.merge(storico, giocatori, on='Nome', how='left').sort_values(by=['Nome', 'Giornata'])
     
-    # Penalità 5.0 per le riserve assolute per non falsare le previsioni
-    df_completo['Media_Base_3'] = df_completo.groupby('Nome')['Voto_Base'].transform(
-        lambda x: x.shift(1).rolling(3, min_periods=1).mean().fillna(5.0)
+    # Calcola la media voto pura su TUTTO lo storico stagionale
+    df_completo['Media_Voto_Totale'] = df_completo.groupby('Nome')['Voto_Base'].transform(
+        lambda x: x.shift(1).expanding().mean().fillna(5.0)
     )
     
     partite_oggi = calendario[calendario['Giornata'] == giornata_da_giocare]
@@ -172,7 +172,7 @@ def prepara_dati_giornata(giornata_da_giocare):
         xg, xa, fatica = row.get('xG', 0.0), row.get('xA', 0.0), row.get('Fatica', 0)
         
         storico_g = df_completo[df_completo['Nome'] == nome]
-        ultima_media = storico_g['Media_Base_3'].iloc[-1] if not storico_g.empty else 5.0
+        ultima_media = storico_g['Media_Voto_Totale'].iloc[-1] if not storico_g.empty else 5.0
         
         match_casa = partite_oggi[partite_oggi['Squadra_Casa'] == squadra]
         match_trasf = partite_oggi[partite_oggi['Squadra_Trasferta'] == squadra]
@@ -188,7 +188,7 @@ def prepara_dati_giornata(giornata_da_giocare):
         
         prossima_giornata.append({
             'Nome': nome, 'Ruolo': ruolo, 'Squadra': squadra,
-            'Media_Base_3': round(ultima_media, 2),
+            'Media_Voto_Totale': round(ultima_media, 2),
             'Fattore_Campo': fattore_campo, 'Avversario': avversario,
             'Difficolta_Ruolo': difficolta_ruolo,
             'Rigori': rigori, 'Punizioni': punizioni,
@@ -201,7 +201,7 @@ def prepara_dati_giornata(giornata_da_giocare):
 def allena_modelli():
     dati_train = pd.DataFrame({
         'Voto_Base': [6.0, 5.0, 6.5, 6.0, 6.5, 5.5, 6.5, 7.0, 5.0, 6.0, 5.5, 6.5, 4.5, 6.0, 5.5, 6.5, 7.0, 4.0],
-        'Media_Base_3': [6.2, 5.5, 6.5, 6.0, 6.5, 5.8, 6.2, 6.8, 5.5, 6.2, 5.8, 6.5, 5.0, 6.0, 5.5, 6.2, 7.0, 4.5],
+        'Media_Voto_Totale': [6.2, 5.5, 6.5, 6.0, 6.5, 5.8, 6.2, 6.8, 5.5, 6.2, 5.8, 6.5, 5.0, 6.0, 5.5, 6.2, 7.0, 4.5],
         'Bonus': [0.0, 0.0, 3.0, 0.5, 0.0, 0.0, 1.0, 3.0, -0.5, 0.0, -0.5, 1.0, -1.0, 0.0, -1.0, 0.0, 3.5, -2.0],
         'Fatica': [90, 90, 45, 0, 90, 75, 90, 90, 90, 90, 0, 45, 90, 90, 90, 90, 90, 90],
         'xG': [0.1, 0.0, 0.8, 0.3, 0.0, 0.1, 0.2, 0.5, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0],
@@ -213,7 +213,7 @@ def allena_modelli():
         'Ruolo': ['A', 'A', 'A', 'A', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D', 'P', 'P', 'P', 'P', 'A', 'P']
     })
     
-    form_base = 'Voto_Base ~ Media_Base_3 + Fatica + Difficolta_Ruolo + Fattore_Campo'
+    form_base = 'Voto_Base ~ Media_Voto_Totale + Fatica + Difficolta_Ruolo + Fattore_Campo'
     mod_base = smf.ols(formula=form_base, data=dati_train).fit()
     
     form_bonus = 'Bonus ~ xG + xA + Rigori + Punizioni + Difficolta_Ruolo + Fattore_Campo'
