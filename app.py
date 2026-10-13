@@ -246,12 +246,17 @@ def calcola_previsioni(dati_giocatore):
     
     xfp_tot = v_base_atteso + bonus_atteso
     
-    # Visto che RLM taglia le code e non calcola gli estremi, 
-    # impostiamo un margine statistico realistico (+/- 1.5 punti)
-    min_v = xfp_tot - 1.5
-    max_v = xfp_tot + 1.5
+    # Margine dinamico: 0.5 di oscillazione base sul voto, 
+    # più una forbice proporzionale alla probabilità di fare gol/assist
+    xg_val = dati_giocatore['xG'].values[0]
+    xa_val = dati_giocatore['xA'].values[0]
+    margine_dinamico = 0.5 + (xg_val * 1.5) + (xa_val * 1.0)
+    
+    min_v = xfp_tot - margine_dinamico
+    max_v = xfp_tot + margine_dinamico
     
     return round(xfp_tot, 2), round(v_base_atteso, 2), round(min_v, 2), round(max_v, 2)
+
 def suggerisci_miglior_formazione(df_giornata):
     previsioni = df_giornata.apply(lambda x: calcola_previsioni(pd.DataFrame([x])), axis=1)
     df_giornata['xFP'] = [p[0] for p in previsioni]
