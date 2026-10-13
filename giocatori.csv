@@ -1,26 +1,26 @@
-Nome;Squadra;Ruolo;xG;xA
-Grabara;Juventus;P;0.0;0.0
-Vicario;Juventus;P;0.0;0.0
-Pinsoglio;Juventus;P;0.0;0.0
-Kristensen T.;Atalanta;D;0.0;0.0
-Carlos Augusto;Inter;D;1.0;1.0
-Valeri;Parma;D;0.0;0.0
-Chalobah T.;Como;D;0.0;0.0
-Vasquez;Genoa;D;0.0;0.0
-Pavlovic;Milan;D;0.0;0.0
-Akanji;Inter;D;0.0;1.0
-Mancini;Roma;D;0.0;2.0
-Adzic;Sassuolo;C;0.0;0.0
-Moreira;Milan;C;3.0;0.0
-Thorstvedt;Sassuolo;C;0.0;0.0
-Ederson D.S.;Atalanta;C;0.0;0.0
-McKennie;Juventus;C;0.0;0.0
-Gaetano;Atalanta;C;0.0;1.0
-De Bruyne;Napoli;C;3.0;1.0
-Zaccagni;Lazio;C;1.0;2.0
-Yeboah J.;Venezia;A;0.0;0.0
-Castro S.;Roma;A;0.0;0.0
-Lucca;Napoli;A;0.0;0.0
-Beto;Fiorentina;A;0.0;1.0
-Malen;Roma;A;6.0;0.0
-Boga;Juventus;A;0.0;0.0
+Nome;Squadra;Ruolo;Rigori
+Grabara;Juventus;P;
+Vicario;Juventus;P;
+Pinsoglio;Juventus;P;
+Kristensen;Atalanta;D;
+Carlos Augusto;Inter;D;
+Valeri;Parma;D;
+Chalobah ;Como;D;
+Vasquez;Genoa;D;
+Pavlovic;Milan;D;
+Akanji;Inter;D;
+Mancini;Roma;D;
+Adzic;Sassuolo;C;
+Moreira;Milan;C;
+Thorstvedt;Sassuolo;C;
+Ederson;Atalanta;C;
+McKennie;Juventus;C;
+Gaetano;Atalanta;C;
+De Bruyne;Napoli;C;
+Zaccagni;Lazio;C;
+Yeboah;Venezia;A;
+Castro;Roma;A;
+Lucca;Napoli;A;
+Beto;Fiorentina;A;
+Malen;Roma;A;
+Boga;Juventus;A;
