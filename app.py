@@ -144,6 +144,10 @@ def prepara_dati_giornata(giornata_da_giocare):
     calendario = pd.read_csv('calendario.csv', sep=';')
     voti_base_oriz = pd.read_csv('storico_voti_base.csv', sep=';')
     voti_bonus_oriz = pd.read_csv('storico_bonus.csv', sep=';')
+
+    giocatori['Squadra'] = giocatori['Squadra'].str.strip()
+    calendario['Squadra_Casa'] = calendario['Squadra_Casa'].str.strip()
+    calendario['Squadra_Trasferta'] = calendario['Squadra_Trasferta'].str.strip()
     
     v_base = voti_base_oriz.melt(id_vars=['Nome'], var_name='Giornata', value_name='Voto_Base')
     v_bonus = voti_bonus_oriz.melt(id_vars=['Nome'], var_name='Giornata', value_name='Bonus')
