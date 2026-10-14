@@ -43,6 +43,14 @@ MODULI_VALIDI = [
     {'nome': '5-4-1', 'P': 1, 'D': 5, 'C': 4, 'A': 1}
 ]
 
+# Baseline xFP di rimpiazzo per il calcolo del VORP
+BASELINE_RUOLO = {
+    'P': 5.0,
+    'D': 5.5,
+    'C': 6.0,
+    'A': 6.5
+}
+
 # --- 2. ZONA CARICAMENTO DATI (SIDEBAR) ---
 st.sidebar.markdown("---")
 st.sidebar.subheader("🔄 Aggiornamento Dati Statistiche")
@@ -99,8 +107,8 @@ if file_fbref is not None:
                     
                     if os.path.exists('giocatori.csv'):
                         mio_file = pd.read_csv('giocatori.csv', sep=';')
+                        mio_file = mio_file.fillna(0)
                         
-                        # Funzione per togliere accenti e lettere strane
                         def pulisci_nome(nome):
                             if not isinstance(nome, str): return ""
                             return unicodedata.normalize('NFKD', nome).encode('ASCII', 'ignore').decode('utf-8').lower()
@@ -133,7 +141,7 @@ if file_fbref is not None:
             st.sidebar.error(f"Errore tecnico: {e}")
 st.sidebar.markdown("---")
 
-# --- 3. PREPARAZIONE DATI E MODELLI ---
+# --- 3. PREPARAZIONE DATI E MODELLI SPECIALIZZATI ---
 @st.cache_data
 def prepara_dati_giornata(giornata_da_giocare):
     file_richiesti = ['giocatori.csv', 'calendario.csv', 'storico_voti_base.csv', 'storico_bonus.csv']
@@ -142,18 +150,14 @@ def prepara_dati_giornata(giornata_da_giocare):
             st.error(f"ERRORE: Manca il file '{file}' nella cartella!")
             return pd.DataFrame()
             
-    giocatori = pd.read_csv('giocatori.csv', sep=';')
-    # SALVATAGGIO CRASH: Riempie le celle vuote dei Rigori con 0
-    giocatori = giocatori.fillna(0)
-    
+    giocatori = pd.read_csv('giocatori.csv', sep=';').fillna(0)
     calendario = pd.read_csv('calendario.csv', sep=';')
     voti_base_oriz = pd.read_csv('storico_voti_base.csv', sep=';')
     voti_bonus_oriz = pd.read_csv('storico_bonus.csv', sep=';')
     
-    # PULIZIA SPAZI INVISIBILI
-    giocatori['Squadra'] = giocatori['Squadra'].str.strip()
-    calendario['Squadra_Casa'] = calendario['Squadra_Casa'].str.strip()
-    calendario['Squadra_Trasferta'] = calendario['Squadra_Trasferta'].str.strip()
+    giocatori['Squadra'] = giocatori['Squadra'].astype(str).str.strip()
+    calendario['Squadra_Casa'] = calendario['Squadra_Casa'].astype(str).str.strip()
+    calendario['Squadra_Trasferta'] = calendario['Squadra_Trasferta'].astype(str).str.strip()
     
     v_base = voti_base_oriz.melt(id_vars=['Nome'], var_name='Giornata', value_name='Voto_Base')
     v_bonus = voti_bonus_oriz.melt(id_vars=['Nome'], var_name='Giornata', value_name='Bonus')
@@ -168,7 +172,6 @@ def prepara_dati_giornata(giornata_da_giocare):
     storico = storico.dropna(subset=['Voto_Base'])
     df_completo = pd.merge(storico, giocatori, on='Nome', how='left').sort_values(by=['Nome', 'Giornata'])
     
-    # CALCOLO MEDIA VOTI TOTALE (su tutta la stagione)
     df_completo['Media_Voto_Totale'] = df_completo.groupby('Nome')['Voto_Base'].transform(
         lambda x: x.shift(1).expanding().mean().fillna(5.0)
     )
@@ -208,7 +211,7 @@ def prepara_dati_giornata(giornata_da_giocare):
     return pd.DataFrame(prossima_giornata)
 
 @st.cache_resource
-def allena_modelli():
+def allena_modelli_specializzati():
     dati_train = pd.DataFrame({
         'Voto_Base': [6.0, 5.0, 6.5, 6.0, 6.5, 5.5, 6.5, 7.0, 5.0, 6.0, 5.5, 6.5, 4.5, 6.0, 5.5, 6.5, 7.0, 4.0],
         'Media_Voto_Totale': [6.2, 5.5, 6.5, 6.0, 6.5, 5.8, 6.2, 6.8, 5.5, 6.2, 5.8, 6.5, 5.0, 6.0, 5.5, 6.2, 7.0, 4.5],
@@ -224,53 +227,69 @@ def allena_modelli():
     })
     
     form_base = 'Voto_Base ~ Media_Voto_Totale + Fatica + Difficolta_Ruolo + Fattore_Campo'
-    # ALGORITMO ROBUSTO: sgonfia gli outlier sui voti
-    mod_base = smf.rlm(formula=form_base, data=dati_train).fit()
-    
     form_bonus = 'Bonus ~ xG + xA + Rigori + Punizioni + Difficolta_Ruolo + Fattore_Campo'
-    # ALGORITMO ROBUSTO: ignora gli azzardi statistici estremi
-    mod_bonus = smf.rlm(formula=form_bonus, data=dati_train).fit()
     
-    return mod_base, mod_bonus
+    # 1. Reparto Arretrato (P, D): Modello RLM Robusto contro outlier e azzardi difensivi
+    train_def = dati_train[dati_train['Ruolo'].isin(['P', 'D'])].copy()
+    mod_base_def = smf.rlm(formula=form_base, data=train_def).fit()
+    mod_bonus_def = smf.rlm(formula=form_bonus, data=train_def).fit()
+    
+    # 2. Reparto Avanzato (C, A): Modello OLS per valorizzare occasioni e bonus attesi
+    train_att = dati_train[dati_train['Ruolo'].isin(['C', 'A'])].copy()
+    mod_base_att = smf.ols(formula=form_base, data=train_att).fit()
+    mod_bonus_att = smf.ols(formula=form_bonus, data=train_att).fit()
+    
+    return {
+        'def_base': mod_base_def, 'def_bonus': mod_bonus_def,
+        'att_base': mod_base_att, 'att_bonus': mod_bonus_att
+    }
 
-# --- 4. MOTORE LOGICO ---
+# --- 4. MOTORE LOGICO E OTTIMIZZATORE VORP ---
 giornata_input = st.sidebar.number_input("Imposta Giornata", min_value=1, max_value=38, value=3)
 df_giornata = prepara_dati_giornata(giornata_input)
+
 if not df_giornata.empty:
-    modello_base, modello_bonus = allena_modelli()
+    modelli = allena_modelli_specializzati()
 
 def calcola_previsioni(dati_giocatore):
-    # Usa .predict() per il Modello Robusto
-    v_base_atteso = modello_base.predict(dati_giocatore).values[0]
-    bonus_atteso = modello_bonus.predict(dati_giocatore).values[0]
+    ruolo = dati_giocatore['Ruolo'].values[0]
     
-    xfp_tot = v_base_atteso + bonus_atteso
+    if ruolo in ['P', 'D']:
+        v_base = modelli['def_base'].predict(dati_giocatore).values[0]
+        bonus = modelli['def_bonus'].predict(dati_giocatore).values[0]
+    else:
+        v_base = modelli['att_base'].predict(dati_giocatore).values[0]
+        bonus = modelli['att_bonus'].predict(dati_giocatore).values[0]
+        
+    xfp_tot = v_base + bonus
     
-    # Margine dinamico: 0.5 di oscillazione base sul voto, 
-    # più una forbice proporzionale alla probabilità di fare gol/assist
+    # Forbice dinamica proporzionata all'incertezza del ruolo
     xg_val = dati_giocatore['xG'].values[0]
     xa_val = dati_giocatore['xA'].values[0]
-    margine_dinamico = 0.5 + (xg_val * 1.5) + (xa_val * 1.0)
+    margine = 0.5 + (xg_val * 1.5) + (xa_val * 1.0)
     
-    min_v = xfp_tot - margine_dinamico
-    max_v = xfp_tot + margine_dinamico
+    min_v = xfp_tot - margine
+    max_v = xfp_tot + margine
     
-    return round(xfp_tot, 2), round(v_base_atteso, 2), round(min_v, 2), round(max_v, 2)
+    return round(xfp_tot, 2), round(v_base, 2), round(min_v, 2), round(max_v, 2)
 
 def suggerisci_miglior_formazione(df_giornata):
     previsioni = df_giornata.apply(lambda x: calcola_previsioni(pd.DataFrame([x])), axis=1)
     df_giornata['xFP'] = [p[0] for p in previsioni]
     df_giornata['Voto_Base_Puro'] = [p[1] for p in previsioni]
     
+    # Calcolo del VORP per eliminare il bias strutturale del 3-4-3
+    df_giornata['VORP'] = df_giornata.apply(lambda r: r['xFP'] - BASELINE_RUOLO.get(r['Ruolo'], 5.5), axis=1)
     df_ordinato = df_giornata.sort_values(by=['Ruolo', 'xFP'], ascending=[True, False])
     
-    miglior_modulo, miglior_punteggio_totale = None, 0
+    miglior_modulo, miglior_valore_vorp = None, -999.0
     migliori_undici = pd.DataFrame()
-    dettagli_modificatore = 0 
+    dettagli_modificatore = 0
+    punti_totali_attesi = 0.0
 
     for modulo in MODULI_VALIDI:
         titolari_modulo = []
-        punteggio_modulo, modulo_valido = 0, True
+        valore_modulo_vorp, modulo_valido = 0, True
         scelti_per_ruolo = {}
         
         for ruolo in ['P', 'D', 'C', 'A']:
@@ -281,7 +300,7 @@ def suggerisci_miglior_formazione(df_giornata):
             scelti = giocatori_disponibili.head(modulo[ruolo])
             titolari_modulo.append(scelti)
             scelti_per_ruolo[ruolo] = scelti
-            punteggio_modulo += scelti['xFP'].sum()
+            valore_modulo_vorp += scelti['VORP'].sum()
             
         if modulo_valido:
             bonus_mod = 0
@@ -295,14 +314,15 @@ def suggerisci_miglior_formazione(df_giornata):
                 elif media_mod >= 6.5: bonus_mod = 3
                 elif media_mod >= 6.0: bonus_mod = 1
                     
-            punteggio_con_bonus = punteggio_modulo + bonus_mod
-            if punteggio_con_bonus > miglior_punteggio_totale:
-                miglior_punteggio_totale = punteggio_con_bonus
+            valore_con_bonus = valore_modulo_vorp + bonus_mod
+            if valore_con_bonus > miglior_valore_vorp:
+                miglior_valore_vorp = valore_con_bonus
                 miglior_modulo = modulo['nome']
                 migliori_undici = pd.concat(titolari_modulo)
                 dettagli_modificatore = bonus_mod
+                punti_totali_attesi = migliori_undici['xFP'].sum() + bonus_mod
             
-    return miglior_modulo, miglior_punteggio_totale, migliori_undici, dettagli_modificatore
+    return miglior_modulo, punti_totali_attesi, migliori_undici, dettagli_modificatore
 
 # --- 5. INTERFACCIA VISIVA ---
 if not df_giornata.empty:
@@ -315,7 +335,7 @@ if not df_giornata.empty:
         dati_g = df_giornata[df_giornata['Nome'] == g_sel]
         
         xfp, vbase, min_v, max_v = calcola_previsioni(dati_g)
-        st.info(f"🏟️ **Contro:** {dati_g['Avversario'].values[0]} | **Difficoltà per il suo ruolo:** {dati_g['Difficolta_Ruolo'].values[0]}/5 | **Min. Giocati scorsi:** {dati_g['Fatica'].values[0]}")
+        st.info(f"🏟️ **Contro:** {dati_g['Avversario'].values[0]} | **Difficoltà Ruolo:** {dati_g['Difficolta_Ruolo'].values[0]}/5 | **Minuti Giocati Precedenti:** {dati_g['Fatica'].values[0]}")
         
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Totale Atteso (xFP)", f"{xfp}")
@@ -344,7 +364,7 @@ if not df_giornata.empty:
             marker=dict(color=['orange', 'blue'], size=15),
             error_x=dict(type='data', symmetric=False, array=[max_B-xfp_B, max_A-xfp_A], arrayminus=[xfp_B-min_B, xfp_A-min_A], color='gray', thickness=3, width=8)
         ))
-        fig.update_layout(xaxis_title="Fantapunti Attesi (con probabilità Bonus inclusa)", height=300)
+        fig.update_layout(xaxis_title="Fantapunti Attesi (xFP)", height=300)
         st.plotly_chart(fig, use_container_width=True, key="grafico_ballottaggio")
         
     with tab3:
@@ -352,9 +372,9 @@ if not df_giornata.empty:
         mod_top, pt_top, top_11, bonus = suggerisci_miglior_formazione(df_giornata)
         
         if top_11.empty:
-            st.warning("⚠️ Non hai inserito abbastanza giocatori per completare un modulo.")
+            st.warning("⚠️ Non ci sono abbastanza giocatori per completare un modulo.")
         else:
-            msg_bonus = f"(di cui +{bonus} da Modificatore chirurgico)" if bonus > 0 else "(Senza modificatore)"
+            msg_bonus = f"(di cui +{bonus} da Modificatore)" if bonus > 0 else "(Senza modificatore)"
             st.success(f"🔥 Modulo Consigliato: **{mod_top}** | Punti Attesi: **{pt_top:.2f}** {msg_bonus}")
             
             c_P, c_D, c_C, c_A = st.columns(4)
