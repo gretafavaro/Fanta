@@ -6,8 +6,8 @@ import os
 import io
 import unicodedata
 
-st.set_page_config(page_title="Fantacalcio AI Pro", layout="wide")
-st.title("⚽ Fantacalcio AI: Modello Avanzato Predittivo")
+st.set_page_config(page_title="Fantacalcio 🔮 ", layout="wide")
+st.title("⚽ Fantacalcio: Modello Predittivo🔮")
 
 # --- 1. MATRICE DIFENSIVA GRANULARE E MODULI ---
 DIFFICOLTA_GRANULARE = {
