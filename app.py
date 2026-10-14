@@ -327,7 +327,8 @@ def suggerisci_miglior_formazione(df_giornata):
 # --- 5. INTERFACCIA VISIVA ---
 if not df_giornata.empty:
     lista_giocatori = df_giornata['Nome'].tolist()
-    tab1, tab2, tab3 = st.tabs(["👤 Analisi Singola", "⚔️ Ballottaggio", "🏆 Formazione Pro"])
+    # Aggiunta la quarta scheda "Senza Fatica"
+    tab1, tab2, tab3, tab4 = st.tabs(["👤 Analisi Singola", "⚔️ Ballottaggio", "🏆 Formazione Pro", "⚡ Senza Fatica"])
 
     with tab1:
         st.header("Analisi Predittiva Avanzata")
@@ -390,3 +391,37 @@ if not df_giornata.empty:
             with c_A:
                 st.subheader("Attacco")
                 for _, g in top_11[top_11['Ruolo'] == 'A'].iterrows(): st.info(f"⚽ **{g['Nome']}** ({g['xFP']} pt)")
+
+    # --- NUOVA SEZIONE: SCHIERAMENTO SENZA FATICA ---
+    with tab4:
+        st.header("Formazione Pura (Ignorando i Minuti Giocati)")
+        st.info("Questa proiezione valuta la rosa assumendo che tutti i giocatori siano al 100% della forma, azzerando i minuti accumulati.")
+        
+        # 1. Copiamo i dati di giornata
+        df_senza_fatica = df_giornata.copy()
+        
+        # 2. Forziamo la fatica a ZERO per tutti i giocatori
+        df_senza_fatica['Fatica'] = 0
+        
+        # 3. Ricalcoliamo la formazione sul nuovo dataset pulito
+        mod_sf, pt_sf, top_sf, bonus_sf = suggerisci_miglior_formazione(df_senza_fatica)
+        
+        if top_sf.empty:
+            st.warning("⚠️ Non ci sono abbastanza giocatori per completare un modulo.")
+        else:
+            msg_bonus_sf = f"(di cui +{bonus_sf} da Modificatore)" if bonus_sf > 0 else "(Senza modificatore)"
+            st.success(f"⚡ Modulo Consigliato: **{mod_sf}** | Punti Attesi (Puri): **{pt_sf:.2f}** {msg_bonus_sf}")
+            
+            c_P_sf, c_D_sf, c_C_sf, c_A_sf = st.columns(4)
+            with c_P_sf:
+                st.subheader("Portiere")
+                for _, g in top_sf[top_sf['Ruolo'] == 'P'].iterrows(): st.info(f"🧤 **{g['Nome']}** ({g['xFP']} pt)")
+            with c_D_sf:
+                st.subheader("Difesa")
+                for _, g in top_sf[top_sf['Ruolo'] == 'D'].iterrows(): st.info(f"🛡️ **{g['Nome']}** ({g['xFP']} pt)")
+            with c_C_sf:
+                st.subheader("Centrocampo")
+                for _, g in top_sf[top_sf['Ruolo'] == 'C'].iterrows(): st.info(f"👟 **{g['Nome']}** ({g['xFP']} pt)")
+            with c_A_sf:
+                st.subheader("Attacco")
+                for _, g in top_sf[top_sf['Ruolo'] == 'A'].iterrows(): st.info(f"⚽ **{g['Nome']}** ({g['xFP']} pt)")
