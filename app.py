@@ -227,7 +227,7 @@ def allena_modelli_specializzati():
     })
     
     form_base = 'Voto_Base ~ Media_Voto_Totale + Fatica + Difficolta_Ruolo + Fattore_Campo'
-    form_bonus = 'Bonus ~ xG + xA + Rigori + Punizioni + Difficolta_Ruolo + Fattore_Campo'
+    form_bonus = 'Bonus ~ I(xG * 3 + xA * 1) + Rigori + Punizioni + Difficolta_Ruolo + Fattore_Campo'
     
     # 1. Reparto Arretrato (P, D): Modello RLM Robusto contro outlier e azzardi difensivi
     train_def = dati_train[dati_train['Ruolo'].isin(['P', 'D'])].copy()
