@@ -1,11 +1,11 @@
 Giornata;Squadra_Casa;Squadra_Trasferta
-7;Frosinone;Sassuolo
-7;Venezia;Napoli
-7;Bologna;Inter
-7;Roma ;Genoa
-7;Udinese;Lecce
-7;Fiorentina;Como
-7;Milan;Atalanta
-7;Juventus;Lazio
-7;Monza;Cagliari
-7;Parma ;Torino
+8;Torino;Monza
+8;Cagliari;Bologna
+8;Como;Sassuolo
+8;Napoli;Roma
+8;Lazio;Parma
+8;Inter;Fiorentina
+8;Genoa;Venezia
+8;Atalanta;Frosinone
+8;Lecce;Juventus
+8;Udinese;Milan
