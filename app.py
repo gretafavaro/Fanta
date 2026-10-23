@@ -6,8 +6,8 @@ import plotly.graph_objects as go
 import os
 import unicodedata
 
-st.set_page_config(page_title="Fantacalcio AI Pro", layout="wide")
-st.title("⚽ Fantacalcio AI: Motore Inferenziale Avanzato")
+st.set_page_config(page_title="Fantacalcio Pro", layout="wide")
+st.title("⚽ Fantacalcio: Motore Inferenziale Avanzato")
 
 # --- 1. MATRICE DIFENSIVA IBRIDA (Dinamica + Statica) ---
 DIFFICOLTA_GRANULARE = {
