@@ -50,7 +50,7 @@ try:
         DIFFICOLTA_GRANULARE_DINAMICA[sq] = {'P': diff_pd, 'D': diff_pd, 'C': diff_ca, 'A': diff_ca}
     DIFFICOLTA_GRANULARE = DIFFICOLTA_GRANULARE_DINAMICA
 except Exception:
-    pass # Mantieni il dizionario statico di default
+    pass 
 
 MODULI_VALIDI = [
     {'nome': '3-4-3', 'P': 1, 'D': 3, 'C': 4, 'A': 3}, {'nome': '3-5-2', 'P': 1, 'D': 3, 'C': 5, 'A': 2},
@@ -62,8 +62,8 @@ BASELINE_RUOLO = {'P': 5.0, 'D': 5.5, 'C': 6.0, 'A': 6.5}
 
 # --- 2. ZONA CARICAMENTO DATI (SIDEBAR) ---
 st.sidebar.markdown("---")
-st.sidebar.subheader("🔄 Aggiornamento FBref")
-file_fbref = st.sidebar.file_uploader("Trascina file FBref", type=['csv', 'txt', 'xls'])
+st.sidebar.subheader("🔄 Dati Giocatori (FBref)")
+file_fbref = st.sidebar.file_uploader("Trascina statistiche giocatori", type=['csv', 'txt', 'xls'])
 
 if file_fbref is not None:
     with st.spinner("Analisi inferenziale del file in corso..."):
@@ -125,15 +125,43 @@ if file_fbref is not None:
         except Exception as e: st.sidebar.error(f"Errore tecnico: {e}")
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("📈 Aggiornamento Classifica")
-file_classifica_upload = st.sidebar.file_uploader("Trascina qui la Classifica (Squadra;GF;GS)", type=['csv'])
+st.sidebar.subheader("📈 Dati Squadre (FBref)")
+file_classifica_upload = st.sidebar.file_uploader("Trascina statistiche Squadre", type=['csv', 'xls', 'txt'])
+
 if file_classifica_upload is not None:
     try:
-        df_classifica_up = pd.read_csv(file_classifica_upload, sep=';')
-        if all(col in df_classifica_up.columns for col in ['Squadra', 'GF', 'GS']):
-            df_classifica_up.to_csv('classifica.csv', sep=';', index=False)
-            st.sidebar.success("✅ Difficoltà Dinamiche ricalcolate! Ricarica la pagina.")
-    except Exception: st.sidebar.error("Errore nel formato file.")
+        df_c = None
+        for sep in [',', ';']:
+            file_classifica_upload.seek(0)
+            temp_df = pd.read_csv(file_classifica_upload, sep=sep, on_bad_lines='skip')
+            if 'Squad' not in temp_df.columns and 'Squadra' not in temp_df.columns:
+                file_classifica_upload.seek(0)
+                temp_df = pd.read_csv(file_classifica_upload, sep=sep, skiprows=1, on_bad_lines='skip')
+            if 'Squad' in temp_df.columns or 'Squadra' in temp_df.columns:
+                df_c = temp_df
+                break
+                
+        if df_c is not None:
+            col_squad = 'Squad' if 'Squad' in df_c.columns else 'Squadra'
+            col_gf = 'Gls' if 'Gls' in df_c.columns else 'GF' if 'GF' in df_c.columns else None
+            col_gs = 'GA' if 'GA' in df_c.columns else 'GS' if 'GS' in df_c.columns else None
+            
+            if col_gf and col_gs:
+                df_clean = pd.DataFrame()
+                # Pulisce i nomi delle squadre rimuovendo prefissi nazionali (es. "it Inter" -> "Inter")
+                df_clean['Squadra'] = df_c[col_squad].astype(str).str.replace(r'^[a-z]{2}\s+', '', regex=True).str.strip()
+                df_clean['GF'] = pd.to_numeric(df_c[col_gf], errors='coerce').fillna(0)
+                df_clean['GS'] = pd.to_numeric(df_c[col_gs], errors='coerce').fillna(0)
+                
+                df_clean = df_clean[df_clean['Squadra'] != 'nan']
+                df_clean.to_csv('classifica.csv', sep=';', index=False)
+                st.sidebar.success("✅ Difficoltà Dinamiche ricalcolate da FBref! Ricarica la pagina.")
+            else:
+                st.sidebar.error("❌ Il file non contiene le colonne Gls (Gol Fatti) e GA (Gol Subiti).")
+        else:
+            st.sidebar.error("❌ Colonna Squad/Squadra non trovata.")
+    except Exception as e: 
+        st.sidebar.error(f"Errore tecnico: {e}")
 
 # --- 3. PREPARAZIONE DATI E MODELLI INFERENZIALI ---
 @st.cache_data
@@ -155,7 +183,6 @@ def prepara_dati_giornata(giornata_da_giocare):
     
     df_completo = pd.merge(storico.dropna(subset=['Voto_Base']), giocatori, on='Nome', how='left').sort_values(by=['Nome', 'Giornata'])
     
-    # EVOLUZIONE STATISTICA 1: Media Mobile Esponenziale (EMA) per dare peso allo stato di forma recente
     df_completo['Media_Voto_Totale'] = df_completo.groupby('Nome')['Voto_Base'].transform(
         lambda x: x.shift(1).ewm(span=5, min_periods=1).mean().fillna(5.0)
     )
@@ -188,7 +215,6 @@ def prepara_dati_giornata(giornata_da_giocare):
 
 @st.cache_resource
 def allena_modelli_specializzati():
-    # Dataset di fallback espanso per garantire convergenza nei termini di interazione
     dati_train = pd.DataFrame({
         'Voto_Base': [6.0, 5.0, 6.5, 6.0, 6.5, 5.5, 6.5, 7.0, 5.0, 6.0, 5.5, 6.5, 4.5, 6.0, 5.5, 6.5, 7.0, 4.0, 5.0, 7.5],
         'Media_Voto_Totale': [6.2, 5.5, 6.5, 6.0, 6.5, 5.8, 6.2, 6.8, 5.5, 6.2, 5.8, 6.5, 5.0, 6.0, 5.5, 6.2, 7.0, 4.5, 5.2, 7.1],
@@ -203,7 +229,6 @@ def allena_modelli_specializzati():
         'Ruolo': ['A', 'A', 'A', 'A', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D', 'P', 'P', 'P', 'P', 'A', 'P', 'D', 'A']
     })
     
-    # EVOLUZIONE STATISTICA 2: Termini di interazione (*) tra Difficoltà e Fattore Campo
     form_base = 'Voto_Base ~ Media_Voto_Totale + Fatica + Difficolta_Ruolo * Fattore_Campo'
     form_bonus = 'Bonus ~ I(xG * 3 + xA * 1) + Rigori + Punizioni + Difficolta_Ruolo * Fattore_Campo'
     
@@ -230,12 +255,10 @@ def calcola_previsioni(dati_giocatore):
     if ruolo in ['P', 'D']:
         v_base = modelli['def_base'].predict(dati_giocatore).values[0]
         bonus = modelli['def_bonus'].predict(dati_giocatore).values[0]
-        # EVOLUZIONE STATISTICA 3: Errore Standard reale del Modello RLM
         err_std = modelli['def_base'].scale + (dati_giocatore['xG'].values[0] * 1.5)
     else:
         v_base = modelli['att_base'].predict(dati_giocatore).values[0]
         bonus = modelli['att_bonus'].predict(dati_giocatore).values[0]
-        # EVOLUZIONE STATISTICA 3: Errore Standard reale del Modello OLS
         err_std = np.sqrt(modelli['att_base'].mse_resid) + (dati_giocatore['xG'].values[0] * 2.0)
         
     xfp_tot = v_base + bonus
