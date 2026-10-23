@@ -128,18 +128,27 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("📈 Dati Squadre (FBref)")
 file_classifica_upload = st.sidebar.file_uploader("Trascina statistiche Squadre", type=['csv', 'xls', 'txt'])
 
-if file_classifica_upload is not None:
-    try:
-        df_c = None
-        for sep in [',', ';']:
-            file_classifica_upload.seek(0)
-            temp_df = pd.read_csv(file_classifica_upload, sep=sep, on_bad_lines='skip')
-            if 'Squad' not in temp_df.columns and 'Squadra' not in temp_df.columns:
-                file_classifica_upload.seek(0)
-                temp_df = pd.read_csv(file_classifica_upload, sep=sep, skiprows=1, on_bad_lines='skip')
-            if 'Squad' in temp_df.columns or 'Squadra' in temp_df.columns:
-                df_c = temp_df
-                break
+# Metodo 2: Lettura CSV Fallback con protezione codifica (utf-8 / latin-1)
+        if df_c is None:
+            for sep in [',', ';']:
+                try:
+                    file_classifica_upload.seek(0)
+                    temp_df = pd.read_csv(file_classifica_upload, sep=sep, on_bad_lines='skip', encoding='utf-8')
+                except UnicodeDecodeError:
+                    file_classifica_upload.seek(0)
+                    temp_df = pd.read_csv(file_classifica_upload, sep=sep, on_bad_lines='skip', encoding='latin-1')
+                
+                if 'Squad' not in temp_df.columns and 'Squadra' not in temp_df.columns:
+                    try:
+                        file_classifica_upload.seek(0)
+                        temp_df = pd.read_csv(file_classifica_upload, sep=sep, skiprows=1, on_bad_lines='skip', encoding='utf-8')
+                    except UnicodeDecodeError:
+                        file_classifica_upload.seek(0)
+                        temp_df = pd.read_csv(file_classifica_upload, sep=sep, skiprows=1, on_bad_lines='skip', encoding='latin-1')
+                
+                if 'Squad' in temp_df.columns or 'Squadra' in temp_df.columns:
+                    df_c = temp_df
+                    break
                 
         if df_c is not None:
             col_squad = 'Squad' if 'Squad' in df_c.columns else 'Squadra'
