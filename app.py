@@ -127,9 +127,8 @@ if file_fbref is not None:
 st.sidebar.markdown("---")
 st.sidebar.subheader("📈 Dati Squadre (FBref)")
 file_classifica_upload = st.sidebar.file_uploader("Trascina statistiche Squadre", type=['csv', 'xls', 'txt'])
-
 # Metodo 2: Lettura CSV Fallback con protezione codifica (utf-8 / latin-1)
-    if df_c is None:
+        if df_c is None:
             for sep in [',', ';']:
                 try:
                     file_classifica_upload.seek(0)
@@ -169,9 +168,6 @@ file_classifica_upload = st.sidebar.file_uploader("Trascina statistiche Squadre"
                 st.sidebar.error("❌ Il file non contiene le colonne Gls (Gol Fatti) e GA (Gol Subiti).")
         else:
             st.sidebar.error("❌ Colonna Squad/Squadra non trovata.")
-    except Exception as e: 
-        st.sidebar.error(f"Errore tecnico: {e}")
-
 # --- 3. PREPARAZIONE DATI E MODELLI INFERENZIALI ---
 @st.cache_data
 def prepara_dati_giornata(giornata_da_giocare):
