@@ -11,16 +11,16 @@ st.title("⚽ Fantacalcio: Motore Inferenziale Avanzato")
 
 # --- 1. MATRICE DIFENSIVA IBRIDA (Dinamica + Statica) ---
 DIFFICOLTA_GRANULARE = {
-    'Inter': {'P': 4, 'D': 5, 'C': 4, 'A': 5}, 'Juventus': {'P': 4, 'D': 4, 'C': 5, 'A': 5},
-    'Napoli': {'P': 4, 'D': 4, 'C': 4, 'A': 4}, 'Atalanta': {'P': 4, 'D': 4, 'C': 4, 'A': 4},
-    'Milan': {'P': 3, 'D': 4, 'C': 4, 'A': 4}, 'Roma': {'P': 3, 'D': 4, 'C': 4, 'A': 3},
-    'Lazio': {'P': 3, 'D': 3, 'C': 4, 'A': 3}, 'Fiorentina':{'P': 3, 'D': 3, 'C': 3, 'A': 3},
-    'Torino': {'P': 2, 'D': 3, 'C': 3, 'A': 3}, 'Bologna': {'P': 2, 'D': 3, 'C': 3, 'A': 3},
-    'Udinese': {'P': 2, 'D': 2, 'C': 2, 'A': 2}, 'Genoa': {'P': 2, 'D': 2, 'C': 2, 'A': 2},
-    'Monza': {'P': 2, 'D': 2, 'C': 2, 'A': 2}, 'Lecce': {'P': 2, 'D': 2, 'C': 2, 'A': 2},
-    'Empoli': {'P': 2, 'D': 2, 'C': 2, 'A': 2}, 'Verona': {'P': 2, 'D': 2, 'C': 2, 'A': 2},
-    'Cagliari': {'P': 1, 'D': 1, 'C': 1, 'A': 1}, 'Parma': {'P': 1, 'D': 1, 'C': 1, 'A': 1},
-    'Como': {'P': 1, 'D': 1, 'C': 1, 'A': 1}, 'Venezia': {'P': 1, 'D': 1, 'C': 1, 'A': 1}
+    'Inter': {'P': 5, 'D': 5, 'C': 3, 'A': 3}, 'Lazio': {'P': 5, 'D': 5, 'C': 5, 'A': 5},
+    'Roma': {'P': 5, 'D': 5, 'C': 5, 'A': 5}, 'Milan': {'P': 5, 'D': 5, 'C': 5, 'A': 5},
+    'Como': {'P': 4, 'D': 4, 'C': 5, 'A': 5}, 'Frosinone': {'P': 5, 'D': 5, 'C': 3, 'A': 3},
+    'Juventus': {'P': 3, 'D': 3, 'C': 4, 'A': 4}, 'Torino': {'P': 3, 'D': 3, 'C': 3, 'A': 3},
+    'Cagliari': {'P': 1, 'D': 1, 'C': 4, 'A': 4}, 'Napoli': {'P': 3, 'D': 3, 'C': 3, 'A': 3},
+    'Atalanta': {'P': 4, 'D': 4, 'C': 2, 'A': 2}, 'Lecce': {'P': 2, 'D': 2, 'C': 2, 'A': 2},
+    'Bologna': {'P': 2, 'D': 2, 'C': 3, 'A': 3}, 'Sassuolo': {'P': 3, 'D': 3, 'C': 2, 'A': 2},
+    'Monza': {'P': 4, 'D': 4, 'C': 1, 'A': 1}, 'Genoa': {'P': 1, 'D': 1, 'C': 3, 'A': 3},
+    'Udinese': {'P': 2, 'D': 2, 'C': 1, 'A': 1}, 'Fiorentina': {'P': 2, 'D': 2, 'C': 1, 'A': 1},
+    'Parma': {'P': 1, 'D': 1, 'C': 2, 'A': 2}, 'Venezia': {'P': 1, 'D': 1, 'C': 1, 'A': 1}
 }
 
 try:
